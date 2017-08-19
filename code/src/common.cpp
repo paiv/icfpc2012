@@ -43,6 +43,7 @@ typedef vector<vector<cell>> board_t;
 typedef vector<action> program_t;
 
 typedef s16 coord;
+typedef u32 coosq;
 
 typedef struct pos {
     coord x;
@@ -394,13 +395,17 @@ run_step(const game_state& currentState, action mv) {
 game_state static
 runsim(const game_state& currentState, const program_t& prog) {
     auto state = currentState;
+    coosq turns = 0;
+    coosq max_turns = state.width * state.height;
 
     for (auto mv : prog) {
-        if (state.is_ended) {
+        if (state.is_ended || turns >= max_turns) {
             break;
         }
 
         state = run_step(state, mv);
+
+        turns++;
     }
 
     if (!state.is_ended) {

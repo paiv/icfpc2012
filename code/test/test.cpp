@@ -164,11 +164,24 @@ test_sim_step() {
 }
 
 
+void
+test_sim() {
+    {
+        auto state = read_map("L\\R");
+        state = runsim(state, read_program("WWWLL"));
+        assert(state.is_ended);
+        assert(state.lambdas_collected == 0);
+        assert(state.score == -3);
+    }
+}
+
+
 int
 test() {
     test_map_reader();
     test_program_reader();
     test_sim_step();
+    test_sim();
     return 0;
 }
 
