@@ -1,0 +1,7 @@
+
+For those who are still having trouble setting up a Virtual Machine, we
+have made a Debian Testing image, available here.
+
+The username/password is icfp/icfp and this account has sudo access.
+
+https://drive.google.com/file/d/0ByLoJ-TYUJQIMjFGMC1GM2FpZ0k/view

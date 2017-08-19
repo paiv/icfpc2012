@@ -1,0 +1,15 @@
+
+JSoko (2017)
+http://www.sokoban-online.de/jsoko.html
+
+Solvers and Optimizers
+http://sokoban.dk/solvers-and-optimizers/
+
+Sokoban Wiki: Solver/Optimizer Development
+http://www.sokobano.de/wiki/index.php?title=Main_Page
+
+Solving Sokoban by Timo Virkkala (2011)
+http://weetu.net/Timo-Virkkala-Solving-Sokoban-Masters-Thesis.pdf
+
+Willy: A Sokoban Solving Agent (2016)
+http://sokoban.dk/wp-content/uploads/2016/02/docslide.us_willy-a-sokoban-solving-agent.pdf

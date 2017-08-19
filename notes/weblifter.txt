@@ -1,0 +1,15 @@
+
+weblifter is down...
+https://www.undecidable.org.uk/~edwin/cgi-bin/weblifter.cgi
+
+some alternatives
+
+
+Web player by Jochen Hoenicke
+https://jochen-hoenicke.de/icfp12/
+
+Web player by Stefan Bühler
+http://lamin.stbuehler.de/
+
+Haskell cli by Ulf Sauer
+https://github.com/UlfS/LambdaLifter
