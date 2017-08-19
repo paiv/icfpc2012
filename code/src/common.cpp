@@ -163,12 +163,15 @@ read_map(istream& si) {
     }
 
     return {
-        .width = max_width,
-        .height = row,
-        .board = board,
-        .lambdas_total = lambdas,
-        .lift_pos = lift,
-        .robot_pos = robot,
+        max_width,  // .width
+        row,        // .height
+        board,      // .board
+        lift,       // .lift_pos
+        lambdas,    // .lambdas_total
+        robot,      // .robot_pos
+        0,          // .score
+        0,          // .lambdas_collected
+        0,          // .is_ended
     };
 }
 
