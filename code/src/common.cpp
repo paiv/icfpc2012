@@ -258,7 +258,10 @@ move_rock(board_t& board, u32 from_x, u32 from_y, u32 to_x, u32 to_y, const pos&
 void static inline
 open_lift(game_state& state) {
     const auto& lift = state.lift_pos;
-    state.board[lift.y][lift.x] = cell::openlift;
+    auto& x = state.board[lift.y][lift.x];
+    if (x == cell::lift) {
+        x = cell::openlift;
+    }
 }
 
 
