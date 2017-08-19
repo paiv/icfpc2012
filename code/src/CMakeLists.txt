@@ -6,3 +6,4 @@ set(CMAKE_CXX_STANDARD 11)
 
 add_executable(lifter lifter.cpp)
 add_executable(validate validator.cpp)
+add_executable(viz viz.cpp)

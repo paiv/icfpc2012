@@ -287,8 +287,11 @@ open_lift(game_state& state) {
 }
 
 
+typedef void (*simcb_t) (const game_state&);
+
+
 game_state static
-run_step(const game_state& currentState, action mv) {
+run_step(const game_state& currentState, action mv, simcb_t callback = nullptr) {
     auto state = currentState;
     auto current_pos = currentState.robot_pos;
     auto next_pos = advance_pos(current_pos, mv);
@@ -359,6 +362,10 @@ run_step(const game_state& currentState, action mv) {
             break;
     }
 
+    if (callback != nullptr) {
+        callback(state);
+    }
+
     if (state.lambdas_collected >= state.lambdas_total) {
         open_lift(state);
     }
@@ -408,12 +415,16 @@ run_step(const game_state& currentState, action mv) {
         state.is_ended = 1;
     }
 
+    if (callback != nullptr) {
+        callback(state);
+    }
+
     return state;
 }
 
 
 game_state static
-runsim(const game_state& currentState, const program_t& prog) {
+runsim(const game_state& currentState, const program_t& prog, simcb_t callback = nullptr) {
     auto state = currentState;
     coosq turns = 0;
     coosq max_turns = state.width * state.height;
@@ -423,13 +434,13 @@ runsim(const game_state& currentState, const program_t& prog) {
             break;
         }
 
-        state = run_step(state, mv);
+        state = run_step(state, mv, callback);
 
         turns++;
     }
 
     if (!state.is_ended) {
-        state = run_step(state, action::abort);
+        state = run_step(state, action::abort, callback);
     }
 
     return state;

@@ -173,6 +173,13 @@ test_sim() {
         assert(state.lambdas_collected == 0);
         assert(state.score == -3);
     }
+
+    {
+        auto state = read_map("L\\R");
+        static u32 x = 0;
+        state = runsim(state, read_program("LL"), [](const game_state& state){ x++; });
+        assert(x == 4); // move+update x2
+    }
 }
 
 
