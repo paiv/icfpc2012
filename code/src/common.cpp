@@ -1,3 +1,4 @@
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -39,7 +40,7 @@ typedef enum action : u8 {
 } action;
 
 
-typedef vector<vector<cell>> board_t;
+typedef vector<cell> board_t;
 typedef vector<action> program_t;
 
 typedef s16 coord;
@@ -72,9 +73,12 @@ bool operator == (const pos& a, const pos& b) {
 
 
 ostream& operator << (ostream& so, const board_t& board) {
-    for (auto& row : board) {
-        for (char x : row) {
-            so << x;
+    const auto stride = so.width();
+    so.width(0);
+
+    for (coosq offset = 0; offset + stride <= board.size(); offset += stride) {
+        for (coord col = 0; col < stride; col++) {
+            so << (char) board[offset + col];
         }
         so << '\n';
     }
@@ -82,7 +86,7 @@ ostream& operator << (ostream& so, const board_t& board) {
 }
 
 ostream& operator << (ostream& so, const game_state& state) {
-    return so << state.board;
+    return so << setw(state.width) << state.board;
 }
 
 ostream& operator << (ostream& so, const program_t& prog) {
@@ -97,7 +101,7 @@ game_state static
 read_map(istream& si) {
     coord max_width = 0;
     coord row = 0;
-    board_t board = board_t({ {} });
+    vector<vector<cell>> board({ {} });
     pos robot = {};
     pos lift = {};
     u32 lambdas = 0;
@@ -158,14 +162,18 @@ read_map(istream& si) {
         row++;
     }
 
+    board_t flat_board;
+    flat_board.reserve(max_width * row);
+
     for (auto& row : board) {
         row.resize(max_width, cell::empty);
+        flat_board.insert(end(flat_board), begin(row), end(row));
     }
 
     return {
         max_width,  // .width
         row,        // .height
-        board,      // .board
+        flat_board, // .board
         lift,       // .lift_pos
         lambdas,    // .lambdas_total
         robot,      // .robot_pos
@@ -237,24 +245,32 @@ advance_pos(pos value, action mv) {
 
 
 void static inline
+move_entity(board_t& board, coord stride, coord from_x, coord from_y, coord to_x, coord to_y) {
+    auto& x = board[from_y * stride + from_x];
+    board[to_y * stride + to_x] = x;
+    x = cell::empty;
+}
+
+void static inline
+move_entity(board_t& board, coord stride, const pos& from, const pos& to) {
+    move_entity(board, stride, from.x, from.y, to.x, to.y);
+}
+
+
+void static inline
 move_robot(game_state& state, const pos& from, const pos& to) {
-    state.board[from.y][from.x] = cell::empty;
-    state.board[to.y][to.x] = cell::robot;
+    move_entity(state.board, state.width, from, to);
     state.robot_pos = to;
 }
 
 
 void static inline
-move_rock(board_t& board, const pos& from, const pos& to) {
-    board[from.y][from.x] = cell::empty;
-    board[to.y][to.x] = cell::rock;
-}
+move_rock(board_t& board, coord stride,
+    coord from_x, coord from_y, coord to_x, coord to_y,
+    const pos& robot_pos, u8* robot_destroyed) {
 
+    move_entity(board, stride, from_x, from_y, to_x, to_y);
 
-void static inline
-move_rock(board_t& board, u32 from_x, u32 from_y, u32 to_x, u32 to_y, const pos& robot_pos, u8* robot_destroyed) {
-    board[from_y][from_x] = cell::empty;
-    board[to_y][to_x] = cell::rock;
     if (to_x == robot_pos.x && to_y + 1 == robot_pos.y) {
         *robot_destroyed = 1;
     }
@@ -264,7 +280,7 @@ move_rock(board_t& board, u32 from_x, u32 from_y, u32 to_x, u32 to_y, const pos&
 void static inline
 open_lift(game_state& state) {
     const auto& lift = state.lift_pos;
-    auto& x = state.board[lift.y][lift.x];
+    auto& x = state.board[lift.y * state.width + lift.x];
     if (x == cell::lift) {
         x = cell::openlift;
     }
@@ -276,6 +292,7 @@ run_step(const game_state& currentState, action mv) {
     auto state = currentState;
     auto current_pos = currentState.robot_pos;
     auto next_pos = advance_pos(current_pos, mv);
+    coord stride = state.width;
 
     switch (mv) {
 
@@ -285,7 +302,7 @@ run_step(const game_state& currentState, action mv) {
         case action::down:
 
             if (next_pos.x >= 0 && next_pos.x < state.width && next_pos.y >= 0 && next_pos.y < state.height) {
-                auto target = state.board[next_pos.y][next_pos.x];
+                auto target = state.board[next_pos.y * stride + next_pos.x];
 
                 switch (target) {
 
@@ -312,8 +329,8 @@ run_step(const game_state& currentState, action mv) {
                             case action::right: {
                                 auto rock_pos = advance_pos(next_pos, mv);
                                 if (rock_pos.x >= 0 && rock_pos.x < state.width) {
-                                    if (state.board[rock_pos.y][rock_pos.x] == cell::empty) {
-                                        move_rock(state.board, next_pos, rock_pos);
+                                    if (state.board[rock_pos.y * stride + rock_pos.x] == cell::empty) {
+                                        move_entity(state.board, stride, next_pos, rock_pos);
                                         move_robot(state, current_pos, next_pos);
                                     }
                                 }
@@ -352,29 +369,29 @@ run_step(const game_state& currentState, action mv) {
 
     for (s32 row = state.height - 2; row >= 0; row--) {
         for (s32 col = 0; col < state.width; col++) {
-            if (state.board[row][col] == cell::rock) {
-                auto bottom = state.board[row+1][col];
+            if (state.board[row * stride + col] == cell::rock) {
+                auto bottom = state.board[(row+1) * stride + col];
                 switch (bottom) {
 
                     case cell::empty:
-                        move_rock(next_board, col, row, col, row + 1, robot_pos, &robot_destroyed);
+                        move_rock(next_board, stride, col, row, col, row + 1, robot_pos, &robot_destroyed);
                         break;
 
                     case cell::rock:
-                        if (col + 1 < state.width && state.board[row][col+1] == cell::empty
-                            && state.board[row+1][col+1] == cell::empty) {
-                                move_rock(next_board, col, row, col + 1, row + 1, robot_pos, &robot_destroyed);
+                        if (col + 1 < state.width && state.board[row * stride + (col+1)] == cell::empty
+                            && state.board[(row+1) * stride + (col+1)] == cell::empty) {
+                                move_rock(next_board, stride, col, row, col + 1, row + 1, robot_pos, &robot_destroyed);
                         }
-                        else if (col - 1 >= 0 && state.board[row][col-1] == cell::empty
-                            && state.board[row+1][col-1] == cell::empty) {
-                                move_rock(next_board, col, row, col - 1, row + 1, robot_pos, &robot_destroyed);
+                        else if (col - 1 >= 0 && state.board[row * stride + (col-1)] == cell::empty
+                            && state.board[(row+1) * stride + (col-1)] == cell::empty) {
+                                move_rock(next_board, stride, col, row, col - 1, row + 1, robot_pos, &robot_destroyed);
                         }
                         break;
 
                     case cell::lambda:
-                        if (col + 1 < state.width && state.board[row][col+1] == cell::empty
-                            && state.board[row+1][col+1] == cell::empty) {
-                                move_rock(next_board, col, row, col + 1, row + 1, robot_pos, &robot_destroyed);
+                        if (col + 1 < state.width && state.board[row * stride + (col+1)] == cell::empty
+                            && state.board[(row+1) * stride + (col+1)] == cell::empty) {
+                                move_rock(next_board, stride, col, row, col + 1, row + 1, robot_pos, &robot_destroyed);
                         }
                         break;
 

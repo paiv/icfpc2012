@@ -12,7 +12,7 @@ validate(istream& si, ostream& so) {
     state = runsim(state, prog);
 
     so << state.score << endl;
-    so << state.board << endl;
+    so << setw(state.width) << state.board << endl;
     so << prog << endl;
 
     return 0;

@@ -25,40 +25,40 @@ test_map_reader() {
     {
         auto m = read_map("#");
         assert(m.width == 1 && m.height == 1);
-        assert(m.board == board_t({ {cell::wall} }));
+        assert(m.board == board_t({cell::wall}));
     }
 
     {
         auto m = read_map("###");
         assert(m.width == 3 && m.height == 1);
-        assert(m.board == board_t({ {cell::wall, cell::wall, cell::wall} }));
+        assert(m.board == board_t({cell::wall, cell::wall, cell::wall}));
     }
 
     {
         auto m = read_map("#\n#");
         assert(m.width == 1 && m.height == 2);
-        assert(m.board == board_t({ {cell::wall}, {cell::wall} }));
+        assert(m.board == board_t({cell::wall, cell::wall}));
     }
 
     {
         auto m = read_map("##\n#");
         assert(m.width == 2 && m.height == 2);
         assert(m.board == board_t({
-            {cell::wall, cell::wall},
-            {cell::wall, cell::empty},
+            cell::wall, cell::wall,
+            cell::wall, cell::empty,
         }));
     }
 
     {
         auto m = read_map("#\n");
         assert(m.width == 1 && m.height == 1);
-        assert(m.board == board_t({ {cell::wall} }));
+        assert(m.board == board_t({cell::wall}));
     }
 
     {
         auto m = read_map("#\n\n#");
         assert(m.width == 1 && m.height == 1);
-        assert(m.board == board_t({ {cell::wall} }));
+        assert(m.board == board_t({cell::wall}));
     }
 
     {
