@@ -11,6 +11,7 @@ using namespace std;
 namespace paiv {
 
 typedef int32_t s32;
+typedef int16_t s16;
 typedef int8_t s8;
 typedef uint32_t u32;
 typedef uint8_t u8;
@@ -41,16 +42,17 @@ typedef enum action : u8 {
 typedef vector<vector<cell>> board_t;
 typedef vector<action> program_t;
 
+typedef s16 coord;
 
 typedef struct pos {
-    s8 x;
-    s8 y;
+    coord x;
+    coord y;
 } pos;
 
 
 typedef struct game_state {
-    u8 width;
-    u8 height;
+    coord width;
+    coord height;
     board_t board;
     pos lift_pos;
     u32 lambdas_total;
@@ -92,8 +94,8 @@ ostream& operator << (ostream& so, const program_t& prog) {
 
 game_state static
 read_map(istream& si) {
-    u8 max_width = 0;
-    u8 row = 0;
+    coord max_width = 0;
+    coord row = 0;
     board_t board = board_t({ {} });
     pos robot = {};
     pos lift = {};
@@ -107,7 +109,7 @@ read_map(istream& si) {
                     done = 1;
                 }
                 else {
-                    max_width = max(max_width, (u8) board[row].size());
+                    max_width = max(max_width, (coord) board[row].size());
                     row++;
                     board.push_back({});
                     board[row].reserve(max_width);
@@ -115,7 +117,7 @@ read_map(istream& si) {
                 break;
 
             case 'R': // robot
-                robot = { .x = (s8) board[row].size(), .y = (s8) row };
+                robot = { .x = (coord) board[row].size(), .y = (coord) row };
                 board[row].push_back(cell(c));
                 break;
 
@@ -126,7 +128,7 @@ read_map(istream& si) {
 
             case 'L': // lift
             case 'O': // openlift
-                lift = { .x = (s8) board[row].size(), .y = (s8) row };
+                lift = { .x = (coord) board[row].size(), .y = (coord) row };
                 board[row].push_back(cell(c));
                 break;
 
@@ -146,7 +148,7 @@ read_map(istream& si) {
         }
     }
 
-    max_width = max(max_width, (u8) board[row].size());
+    max_width = max(max_width, (coord) board[row].size());
 
     if (board[row].size() == 0) {
         board.pop_back();
