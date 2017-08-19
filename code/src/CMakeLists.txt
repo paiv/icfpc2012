@@ -4,4 +4,5 @@ project(icfp2012_paiv)
 
 set(CMAKE_CXX_STANDARD 11)
 
-add_executable(lifter main.cpp)
+add_executable(lifter lifter.cpp)
+add_executable(validate validator.cpp)

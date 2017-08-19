@@ -1,5 +1,5 @@
 
-.PHONY: all release debug clean
+.PHONY: all release debug clean test
 
 all: release
 
@@ -22,6 +22,10 @@ $(TARGET_DIR)/Makefile:
 	mkdir -p $(TARGET_DIR) \
 		&& cd $(TARGET_DIR) \
 		&& cmake $(CMAKE_ARGS) ../../src
+
+
+test:
+	cd test && $(MAKE)
 
 
 clean:
