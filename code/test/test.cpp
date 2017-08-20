@@ -18,32 +18,32 @@ void
 test_map_reader() {
     {
         auto m = read_map("");
-        assert(m.width == 0 && m.height == 0);
-        assert(m.board == board_t({}));
+        assert(getmap(m).width == 0 && getmap(m).height == 0);
+        assert(getsim(m).board == board_t({}));
     }
 
     {
         auto m = read_map("#");
-        assert(m.width == 1 && m.height == 1);
-        assert(m.board == board_t({cell::wall}));
+        assert(getmap(m).width == 1 && getmap(m).height == 1);
+        assert(getsim(m).board == board_t({cell::wall}));
     }
 
     {
         auto m = read_map("###");
-        assert(m.width == 3 && m.height == 1);
-        assert(m.board == board_t({cell::wall, cell::wall, cell::wall}));
+        assert(getmap(m).width == 3 && getmap(m).height == 1);
+        assert(getsim(m).board == board_t({cell::wall, cell::wall, cell::wall}));
     }
 
     {
         auto m = read_map("#\n#");
-        assert(m.width == 1 && m.height == 2);
-        assert(m.board == board_t({cell::wall, cell::wall}));
+        assert(getmap(m).width == 1 && getmap(m).height == 2);
+        assert(getsim(m).board == board_t({cell::wall, cell::wall}));
     }
 
     {
         auto m = read_map("##\n#");
-        assert(m.width == 2 && m.height == 2);
-        assert(m.board == board_t({
+        assert(getmap(m).width == 2 && getmap(m).height == 2);
+        assert(getsim(m).board == board_t({
             cell::wall, cell::wall,
             cell::wall, cell::empty,
         }));
@@ -51,24 +51,24 @@ test_map_reader() {
 
     {
         auto m = read_map("#\n");
-        assert(m.width == 1 && m.height == 1);
-        assert(m.board == board_t({cell::wall}));
+        assert(getmap(m).width == 1 && getmap(m).height == 1);
+        assert(getsim(m).board == board_t({cell::wall}));
     }
 
     {
         auto m = read_map("#\n\n#");
-        assert(m.width == 1 && m.height == 1);
-        assert(m.board == board_t({cell::wall}));
+        assert(getmap(m).width == 1 && getmap(m).height == 1);
+        assert(getsim(m).board == board_t({cell::wall}));
     }
 
     {
         auto m = read_map("R");
-        assert(m.robot_pos == pos({0,0}));
+        assert(getsim(m).robot_pos == pos({0,0}));
     }
 
     {
         auto m = read_map("#\n#R");
-        assert(m.robot_pos == pos({1,1}));
+        assert(getsim(m).robot_pos == pos({1,1}));
     }
 }
 
@@ -100,63 +100,63 @@ test_program_reader() {
 void
 test_sim_step() {
     {
-        auto state = read_map("L\\R");
-        state = simulator_step(state, action::left);
+        auto m = read_map("L\\R");
+        auto state = simulator_step(getmap(m), getsim(m), action::left);
         assert(state.robot_pos == pos({1,0}));
-        state = simulator_step(state, action::left);
+        state = simulator_step(getmap(m), state, action::left);
         assert(state.is_ended);
         assert(state.lambdas_collected == 1);
         assert(state.score == 73);
     }
 
     {
-        auto state = read_map("* \n  \n R\nL#");
-        state = simulator_step(state, action::left);
+        auto m = read_map("* \n  \n R\nL#");
+        auto state = simulator_step(getmap(m), getsim(m), action::left);
         assert(state.robot_pos == pos({0,2}));
         assert(state.is_ended);
         assert(state.score == -1);
     }
 
     {
-        auto state = read_map("* \n R\nL#");
-        state = simulator_step(state, action::left);
+        auto m = read_map("* \n R\nL#");
+        auto state = simulator_step(getmap(m), getsim(m), action::left);
         assert(state.robot_pos == pos({0,1}));
         assert(!state.is_ended);
         assert(state.score == -1);
-        state = simulator_step(state, action::down);
+        state = simulator_step(getmap(m), state, action::down);
         assert(state.robot_pos == pos({0,2}));
         assert(state.is_ended);
         assert(state.score == -2);
     }
 
     {
-        auto state = read_map("   \n * \n.*R\nL##");
-        state = simulator_step(state, action::wait);
+        auto m = read_map("   \n * \n.*R\nL##");
+        auto state = simulator_step(getmap(m), getsim(m), action::wait);
         assert(state.robot_pos == pos({2,2}));
         assert(!state.is_ended);
         assert(state.score == -1);
     }
 
     {
-        auto state = read_map("* \n  \n R\nL#");
-        state = simulator_step(state, action::left);
+        auto m = read_map("* \n  \n R\nL#");
+        auto state = simulator_step(getmap(m), getsim(m), action::left);
         assert(state.robot_pos == pos({0,2}));
         assert(state.is_ended);
         assert(state.score == -1);
     }
 
     {
-        auto state = read_map("*\nR\n \nL#");
-        state = simulator_step(state, action::down);
+        auto m = read_map("*\nR\n \nL#");
+        auto state = simulator_step(getmap(m), getsim(m), action::down);
         assert(state.robot_pos == pos({0,2}));
         assert(state.is_ended);
         assert(state.score == -1);
     }
 
     {
-        auto state = read_map("* \n  \n  \nL\\R");
-        state = simulator_step(state, action::left);
-        state = simulator_step(state, action::left);
+        auto m = read_map("* \n  \n  \nL\\R");
+        auto state = simulator_step(getmap(m), getsim(m), action::left);
+        state = simulator_step(getmap(m), state, action::left);
         assert(state.robot_pos == pos({0,3}));
         assert(state.is_ended);
         assert(state.score == 73);
@@ -167,17 +167,17 @@ test_sim_step() {
 void
 test_sim() {
     {
-        auto state = read_map("L\\R");
-        state = runsim(state, read_program("WWWLL"));
+        auto m = read_map("L\\R");
+        auto state = runsim(getmap(m), getsim(m), read_program("WWWLL"));
         assert(state.is_ended);
         assert(state.lambdas_collected == 0);
         assert(state.score == -3);
     }
 
     {
-        auto state = read_map("L\\R");
+        auto m = read_map("L\\R");
         static u32 x = 0;
-        state = runsim(state, read_program("LL"), [](const game_state& state){ x++; });
+        auto state = runsim(getmap(m), getsim(m), read_program("LL"), [](const map_info&, const sim_state&){ x++; });
         assert(x == 5); // initial + 2 x move+update
     }
 }

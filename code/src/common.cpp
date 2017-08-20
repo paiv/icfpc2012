@@ -2,6 +2,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -61,19 +62,34 @@ typedef struct pos {
 } pos;
 
 
-typedef struct game_state {
+typedef struct map_info {
     coord width;
     coord height;
     pos lift_pos;
     u32 lambdas_total;
+} map_info;
 
+
+typedef struct sim_state {
     board_t board;
     pos robot_pos;
     s32 score;
     u32 lambdas_collected;
-
     u8 is_ended;
-} game_state;
+} sim_state;
+
+
+typedef tuple<map_info, sim_state> game_state;
+
+static inline const map_info&
+getmap(const game_state& state) {
+    return get<0>(state);
+}
+
+static inline const sim_state&
+getsim(const game_state& state) {
+    return get<1>(state);
+}
 
 
 bool operator == (const pos& a, const pos& b) {
@@ -95,7 +111,7 @@ ostream& operator << (ostream& so, const board_t& board) {
 }
 
 ostream& operator << (ostream& so, const game_state& state) {
-    return so << setw(state.width) << state.board;
+    return so << setw(getmap(state).width) << getsim(state).board;
 }
 
 ostream& operator << (ostream& so, const program_t& prog) {
@@ -179,17 +195,21 @@ read_map(istream& si) {
         flat_board.insert(end(flat_board), begin(row), end(row));
     }
 
-    return {
-        max_width,  // .width
-        row,        // .height
-        lift,       // .lift_pos
-        lambdas,    // .lambdas_total
-        flat_board, // .board
-        robot,      // .robot_pos
-        0,          // .score
-        0,          // .lambdas_collected
-        0,          // .is_ended
-    };
+    return make_tuple<map_info, sim_state>(
+        {
+            max_width,  // .width
+            row,        // .height
+            lift,       // .lift_pos
+            lambdas,    // .lambdas_total
+        },
+        {
+            flat_board, // .board
+            robot,      // .robot_pos
+            0,          // .score
+            0,          // .lambdas_collected
+            0,          // .is_ended
+        }
+    );
 }
 
 
@@ -267,8 +287,8 @@ move_entity(board_t& board, coord stride, const pos& from, const pos& to) {
 
 
 void static inline
-move_robot(game_state& state, const pos& from, const pos& to) {
-    move_entity(state.board, state.width, from, to);
+move_robot(const map_info& map, sim_state& state, const pos& from, const pos& to) {
+    move_entity(state.board, map.width, from, to);
     state.robot_pos = to;
 }
 
@@ -287,24 +307,24 @@ move_rock(board_t& board, coord stride,
 
 
 void static inline
-open_lift(game_state& state) {
-    const auto& lift = state.lift_pos;
-    auto& x = state.board[lift.y * state.width + lift.x];
+open_lift(const map_info& map, sim_state& state) {
+    const auto& lift = map.lift_pos;
+    auto& x = state.board[lift.y * map.width + lift.x];
     if (x == cell::lift) {
         x = cell::openlift;
     }
 }
 
 
-typedef void (*simcb_t) (const game_state&);
+typedef void (*simcb_t) (const map_info&, const sim_state&);
 
 
-game_state static
-simulator_step(const game_state& currentState, action mv, simcb_t callback = nullptr) {
+sim_state static
+simulator_step(const map_info& map, const sim_state& currentState, action mv, simcb_t callback = nullptr) {
     auto state = currentState;
     auto current_pos = currentState.robot_pos;
     auto next_pos = advance_pos(current_pos, mv);
-    coord stride = state.width;
+    coord stride = map.width;
 
     switch (mv) {
 
@@ -313,7 +333,7 @@ simulator_step(const game_state& currentState, action mv, simcb_t callback = nul
         case action::up:
         case action::down:
 
-            if (next_pos.x >= 0 && next_pos.x < state.width && next_pos.y >= 0 && next_pos.y < state.height) {
+            if (next_pos.x >= 0 && next_pos.x < map.width && next_pos.y >= 0 && next_pos.y < map.height) {
                 auto target = state.board[next_pos.y * stride + next_pos.x];
 
                 switch (target) {
@@ -321,18 +341,18 @@ simulator_step(const game_state& currentState, action mv, simcb_t callback = nul
                     case cell::lambda:
                         state.lambdas_collected++;
                         state.score += 25;
-                        move_robot(state, current_pos, next_pos);
+                        move_robot(map, state, current_pos, next_pos);
                         break;
 
                     case cell::openlift:
                         state.is_ended = 1;
                         state.score += 50 * state.lambdas_collected;
-                        move_robot(state, current_pos, next_pos);
+                        move_robot(map, state, current_pos, next_pos);
                         break;
 
                     case cell::empty:
                     case cell::earth:
-                        move_robot(state, current_pos, next_pos);
+                        move_robot(map, state, current_pos, next_pos);
                         break;
 
                     case cell::rock:
@@ -340,10 +360,10 @@ simulator_step(const game_state& currentState, action mv, simcb_t callback = nul
                             case action::left:
                             case action::right: {
                                 auto rock_pos = advance_pos(next_pos, mv);
-                                if (rock_pos.x >= 0 && rock_pos.x < state.width) {
+                                if (rock_pos.x >= 0 && rock_pos.x < map.width) {
                                     if (state.board[rock_pos.y * stride + rock_pos.x] == cell::empty) {
                                         move_entity(state.board, stride, next_pos, rock_pos);
-                                        move_robot(state, current_pos, next_pos);
+                                        move_robot(map, state, current_pos, next_pos);
                                     }
                                 }
                             }
@@ -372,19 +392,19 @@ simulator_step(const game_state& currentState, action mv, simcb_t callback = nul
     }
 
     if (callback != nullptr) {
-        callback(state);
+        callback(map, state);
     }
 
-    if (state.lambdas_collected >= state.lambdas_total) {
-        open_lift(state);
+    if (state.lambdas_collected >= map.lambdas_total) {
+        open_lift(map, state);
     }
 
     auto next_board = state.board;
     auto robot_pos = state.robot_pos;
     u8 robot_destroyed = 0;
 
-    for (s32 row = state.height - 2; row >= 0; row--) {
-        for (s32 col = 0; col < state.width; col++) {
+    for (s32 row = map.height - 2; row >= 0; row--) {
+        for (s32 col = 0; col < map.width; col++) {
             if (state.board[row * stride + col] == cell::rock) {
                 auto bottom = state.board[(row+1) * stride + col];
                 switch (bottom) {
@@ -394,7 +414,7 @@ simulator_step(const game_state& currentState, action mv, simcb_t callback = nul
                         break;
 
                     case cell::rock:
-                        if (col + 1 < state.width && state.board[row * stride + (col+1)] == cell::empty
+                        if (col + 1 < map.width && state.board[row * stride + (col+1)] == cell::empty
                             && state.board[(row+1) * stride + (col+1)] == cell::empty) {
                                 move_rock(next_board, stride, col, row, col + 1, row + 1, robot_pos, &robot_destroyed);
                         }
@@ -405,7 +425,7 @@ simulator_step(const game_state& currentState, action mv, simcb_t callback = nul
                         break;
 
                     case cell::lambda:
-                        if (col + 1 < state.width && state.board[row * stride + (col+1)] == cell::empty
+                        if (col + 1 < map.width && state.board[row * stride + (col+1)] == cell::empty
                             && state.board[(row+1) * stride + (col+1)] == cell::empty) {
                                 move_rock(next_board, stride, col, row, col + 1, row + 1, robot_pos, &robot_destroyed);
                         }
@@ -425,21 +445,21 @@ simulator_step(const game_state& currentState, action mv, simcb_t callback = nul
     }
 
     if (callback != nullptr) {
-        callback(state);
+        callback(map, state);
     }
 
     return state;
 }
 
 
-game_state static
-runsim(const game_state& currentState, const program_t& prog, simcb_t callback = nullptr) {
+sim_state static
+runsim(const map_info& map, const sim_state& currentState, const program_t& prog, simcb_t callback = nullptr) {
     auto state = currentState;
     coosq turns = 0;
-    coosq max_turns = state.width * state.height;
+    coosq max_turns = map.width * map.height;
 
     if (callback != nullptr) {
-        callback(state);
+        callback(map, state);
     }
 
     for (auto mv : prog) {
@@ -447,13 +467,13 @@ runsim(const game_state& currentState, const program_t& prog, simcb_t callback =
             break;
         }
 
-        state = simulator_step(state, mv, callback);
+        state = simulator_step(map, state, mv, callback);
 
         turns++;
     }
 
     if (!state.is_ended) {
-        state = simulator_step(state, action::abort, callback);
+        state = simulator_step(map, state, action::abort, callback);
     }
 
     return state;

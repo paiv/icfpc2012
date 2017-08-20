@@ -7,19 +7,14 @@ namespace paiv {
 
 
 typedef struct search_state {
-    board_t board;
-
-    pos robot_pos;
-    s32 score;
-    u32 lambdas_collected;
+    sim_state sim;
 
     u8 is_terminal;
     u8 is_win;
-
     program_t prog;
 
     bool operator == (const search_state& b) const {
-        return board == b.board;
+        return sim.board == b.sim.board;
     }
 } search_state;
 
@@ -47,7 +42,7 @@ template<>
 struct hash<search_state> {
     inline size_t operator()(const search_state& v) const {
         hash<board_t> b;
-        return b(v.board);
+        return b(v.sim.board);
     }
 };
 
@@ -59,7 +54,7 @@ namespace paiv {
 
 
 vector<search_state> static
-children(const search_state& currentState, const game_state& game) {
+children(const map_info& map, const search_state& currentState) {
     vector<search_state> res;
 
     if (currentState.is_terminal) {
@@ -67,32 +62,16 @@ children(const search_state& currentState, const game_state& game) {
     }
 
     for (auto mv : all_actions) {
-        game_state sim_state = {
-            game.width,
-            game.height,
-            game.lift_pos,
-            game.lambdas_total,
 
-            currentState.board,
-            currentState.robot_pos,
-            currentState.score,
-            currentState.lambdas_collected,
-
-            currentState.is_terminal,
-        };
-
-        sim_state = simulator_step(sim_state, mv);
+        auto sim = simulator_step(map, currentState.sim, mv);
 
         auto prog = currentState.prog;
         prog.push_back(mv);
 
         search_state nextState = {
-            sim_state.board,
-            sim_state.robot_pos,
-            sim_state.score,
-            sim_state.lambdas_collected,
-            sim_state.is_ended,
-            sim_state.robot_pos == game.lift_pos,
+            sim,
+            sim.is_ended,
+            sim.robot_pos == map.lift_pos,
             prog,
         };
 
@@ -105,7 +84,7 @@ children(const search_state& currentState, const game_state& game) {
 
 
 search_state static
-bfs_player(const game_state& game, const search_state& initialState, const u8& cancelled) {
+bfs_player(const map_info& map, const search_state& initialState, const u8& cancelled) {
 
     auto best = initialState;
 
@@ -128,15 +107,18 @@ bfs_player(const game_state& game, const search_state& initialState, const u8& c
             return current;
         }
         else if (current.is_terminal) {
-            if (current.score > best.score) {
+            if (current.sim.score > best.sim.score) {
                 best = current;
             }
         }
 
-        for (auto& child : children(current, game)) {
+        for (auto& child : children(map, current)) {
             fringe.push(child);
         }
     }
+
+    // clog << "visited: " << visited.size() << " (" << visited.size() * sizeof(search_state) << " bytes)" << endl;
+    // clog << "fringe: " << fringe.size() << " (" << fringe.size() * sizeof(search_state) << " bytes)" << endl;
 
     return best;
 }
@@ -145,17 +127,17 @@ bfs_player(const game_state& game, const search_state& initialState, const u8& c
 program_t static inline
 bfs_player(const game_state& game, const u8& cancelled) {
 
+    auto& map = getmap(game);
+    auto& sim = getsim(game);
+
     search_state state = {
-        game.board,
-        game.robot_pos,
-        game.score,
-        game.lambdas_collected,
-        game.is_ended,
-        0,
+        sim,
+        sim.is_ended,
+        sim.robot_pos == map.lift_pos,
         program_t(),
     };
 
-    state = bfs_player(game, state, cancelled);
+    state = bfs_player(map, state, cancelled);
 
     return state.prog;
 }

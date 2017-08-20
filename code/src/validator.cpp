@@ -6,13 +6,16 @@ namespace paiv {
 
 s32
 validate(istream& si, ostream& so) {
-    auto state = read_map(si);
+    auto game = read_map(si);
     auto prog = read_program(si);
 
-    state = runsim(state, prog);
+    auto& map = getmap(game);
+    auto state = getsim(game);
+
+    state = runsim(map, state, prog);
 
     so << state.score << endl;
-    so << setw(state.width) << state.board << endl;
+    so << setw(map.width) << state.board << endl;
     so << prog << endl;
 
     return 0;

@@ -7,14 +7,17 @@ namespace paiv {
 
 s32
 viz(istream& si, ostream& so, u32 delay) {
-    auto state = read_map(si);
+    auto game = read_map(si);
     auto prog = read_program(si);
+
+    auto& map = getmap(game);
+    auto state = getsim(game);
 
     static auto& sso = so;
     static auto sdelay = delay;
 
-    state = runsim(state, prog, [](const game_state& state){
-        sso << setw(state.width) << state.board << endl;
+    state = runsim(map, state, prog, [](const map_info& map, const sim_state& state){
+        sso << setw(map.width) << state.board << endl;
         usleep(sdelay * 1000);
     });
 
