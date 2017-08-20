@@ -58,6 +58,7 @@ namespace paiv {
 vector<search_state> static inline
 children(const map_info& map, const search_state& currentState) {
     vector<search_state> res;
+    auto stride = map.width;
 
     #if 0
     if (currentState.sim.is_ended) {
@@ -65,10 +66,71 @@ children(const map_info& map, const search_state& currentState) {
     }
     #endif
 
+    if (currentState.prog.size() >= map.width * map.height) {
+        return res;
+    }
+
     for (auto mv : all_actions) {
-        auto nextState = currentState;
-        nextState.prog.push_back(mv);
-        res.push_back(nextState);
+        auto state = currentState;
+        u8 is_valid = 1;
+
+        switch (mv) {
+
+            case action::left:
+            case action::right:
+            case action::up:
+            case action::down: {
+                    auto& current_pos = state.sim.robot_pos;
+                    auto next_pos = advance_pos(current_pos, mv);
+
+                    u8 inside_bounds = next_pos.x >= 0 && next_pos.x < map.width && next_pos.y >= 0 && next_pos.y < map.height;
+                    if (!inside_bounds) {
+                        is_valid = 0;
+                    }
+                    else {
+                        auto target = state.sim.board[next_pos.y * stride + next_pos.x];
+                        switch (target) {
+                            case cell::empty:
+                            case cell::earth:
+                            case cell::lambda:
+                            case cell::openlift:
+                                break;
+
+                            case cell::rock:
+                                switch (mv) {
+                                    case action::left:
+                                    case action::right: {
+                                            auto rock_pos = advance_pos(next_pos, mv);
+                                            is_valid = rock_pos.x >= 0 && rock_pos.x < map.width;
+                                            if (is_valid)
+                                                is_valid = state.sim.board[rock_pos.y * stride + rock_pos.x] == cell::empty;
+                                        }
+                                        break;
+                                    default:
+                                        is_valid = 0;
+                                        break;
+                                }
+                                break;
+
+                            case cell::wall:
+                            case cell::lift:
+                            case cell::robot:
+                                is_valid = 0;
+                                break;
+                        }
+                    }
+                }
+                break;
+
+            case action::wait:
+            case action::abort:
+                break;
+        }
+
+        if (is_valid) {
+            state.prog.push_back(mv);
+            res.push_back(state);
+        }
     }
 
     return res;
@@ -80,6 +142,7 @@ search_state static
 bfs_player(const map_info& map, const search_state& initialState, const u8& cancelled) {
 
     auto best = initialState;
+    size_t depth = 0;
 
     queue<search_state> fringe;
     unordered_set<u64> visited;
@@ -103,23 +166,24 @@ bfs_player(const map_info& map, const search_state& initialState, const u8& canc
 
         visited.insert(current.sim.board_hash);
 
+        depth = max(depth, current.prog.size());
+
 
         if (current.is_win) {
             return current;
         }
-        else if (current.sim.is_ended) {
-            if (current.sim.score > best.sim.score) {
-                best = current;
-            }
+
+        if (current.sim.score > best.sim.score) {
+            best = current;
         }
-        else {
-            for (auto& child : children(map, current)) {
-                fringe.push(child);
-            }
+
+        for (auto& child : children(map, current)) {
+            fringe.push(child);
         }
     }
 
     #if 0
+    clog << "max depth: " << depth << endl;
     clog << "visited: " << visited.size() << " (" << visited.size() * sizeof(*begin(visited)) << " bytes)" << endl;
     clog << "fringe: " << fringe.size() << " (" << fringe.size() * sizeof(search_state) << " bytes)" << endl;
     #endif

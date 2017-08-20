@@ -23,7 +23,10 @@ mkdir -p "$LOGDIR"
 cat "$GAMEMAP" | tee "$LOGDIR/map.txt"
 echo ''
 
+set +e
 PROG=`cat "$GAMEMAP" | timeout -2 "$TIMEOUT" "$TARGET_DIR/lifter" 2> "$LOGDIR/stderr.log" `
+set -e
+
 
 { cat "$GAMEMAP"; echo ''; echo "$PROG"; } | "$TARGET_DIR/validate" 2>> "$LOGDIR/stderr.log" 1> "$LOGDIR/solution.txt"
 

@@ -125,7 +125,7 @@ static const action all_actions[] = {
     action::up,
     action::down,
     action::wait,
-    action::abort,
+    // action::abort,
 };
 
 
@@ -466,13 +466,13 @@ simulator_step(const map_info& map, const sim_state& currentState, action mv, si
 
                     case cell::lambda:
                         state.lambdas_collected++;
-                        state.score += 25;
+                        state.score += 50;
                         move_robot(map, state, current_pos, next_pos);
                         break;
 
                     case cell::openlift:
                         state.is_ended = 1;
-                        state.score += 50 * state.lambdas_collected;
+                        state.score += 25 * state.lambdas_collected;
                         move_robot(map, state, current_pos, next_pos);
                         break;
 
@@ -485,14 +485,15 @@ simulator_step(const map_info& map, const sim_state& currentState, action mv, si
                         switch (mv) {
                             case action::left:
                             case action::right: {
-                                auto rock_pos = advance_pos(next_pos, mv);
-                                if (rock_pos.x >= 0 && rock_pos.x < map.width) {
-                                    if (state.board[rock_pos.y * stride + rock_pos.x] == cell::empty) {
-                                        move_entity(state, stride, next_pos, rock_pos);
-                                        move_robot(map, state, current_pos, next_pos);
+                                    auto rock_pos = advance_pos(next_pos, mv);
+                                    if (rock_pos.x >= 0 && rock_pos.x < map.width) {
+                                        if (state.board[rock_pos.y * stride + rock_pos.x] == cell::empty) {
+                                            move_entity(state, stride, next_pos, rock_pos);
+                                            move_robot(map, state, current_pos, next_pos);
+                                        }
                                     }
                                 }
-                            }
+                                break;
                             default: break;
                         }
                         break;
@@ -513,7 +514,6 @@ simulator_step(const map_info& map, const sim_state& currentState, action mv, si
 
         case action::abort:
             state.is_ended = 1;
-            state.score += 25 * state.lambdas_collected;
             break;
     }
 
@@ -573,9 +573,9 @@ simulator_step(const map_info& map, const sim_state& currentState, action mv, si
     assert(state.board_hash == zobrist);
     #endif
 
-
     if (!state.is_ended && robot_destroyed) {
         state.is_ended = 1;
+        state.score -= 25 * state.lambdas_collected;
     }
 
     if (callback != nullptr) {
