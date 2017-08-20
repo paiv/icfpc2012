@@ -26,13 +26,14 @@ namespace std {
 
 using namespace paiv;
 
+#if 0
 template<>
 struct hash<paiv::board_t> {
     inline size_t operator()(const board_t& v) const {
         hash<uint8_t> h;
         size_t seed = 0;
-        for (uint8_t x : v) {
-            seed ^= h(x) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        for (cell x : v) {
+            seed ^= h((uint8_t) x) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
         }
         return seed;
     }
@@ -45,7 +46,7 @@ struct hash<search_state> {
         return b(v.sim.board);
     }
 };
-
+#endif
 
 }
 
@@ -89,7 +90,7 @@ bfs_player(const map_info& map, const search_state& initialState, const u8& canc
     auto best = initialState;
 
     queue<search_state> fringe;
-    unordered_set<search_state> visited;
+    unordered_set<u64> visited;
 
     fringe.push(initialState);
 
@@ -97,11 +98,11 @@ bfs_player(const map_info& map, const search_state& initialState, const u8& canc
         auto current = fringe.front();
         fringe.pop();
 
-        if (visited.find(current) != end(visited)) {
+        if (visited.find(current.sim.board_hash) != end(visited)) {
             continue;
         }
 
-        visited.insert(current);
+        visited.insert(current.sim.board_hash);
 
         if (current.is_win) {
             return current;
@@ -117,8 +118,10 @@ bfs_player(const map_info& map, const search_state& initialState, const u8& canc
         }
     }
 
-    // clog << "visited: " << visited.size() << " (" << visited.size() * sizeof(search_state) << " bytes)" << endl;
-    // clog << "fringe: " << fringe.size() << " (" << fringe.size() * sizeof(search_state) << " bytes)" << endl;
+    #if 0
+    clog << "visited: " << visited.size() << " (" << visited.size() * sizeof(*begin(visited)) << " bytes)" << endl;
+    clog << "fringe: " << fringe.size() << " (" << fringe.size() * sizeof(search_state) << " bytes)" << endl;
+    #endif
 
     return best;
 }

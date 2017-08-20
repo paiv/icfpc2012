@@ -1,5 +1,6 @@
 #include <iomanip>
 #include <iostream>
+#include <random>
 #include <sstream>
 #include <string>
 #include <tuple>
@@ -15,11 +16,33 @@ namespace paiv {
 typedef int32_t s32;
 typedef int16_t s16;
 typedef int8_t s8;
+typedef uint64_t u64;
 typedef uint32_t u32;
 typedef uint8_t u8;
 
+typedef vector<uint64_t> u64vec;
 
-typedef enum cell : u8 {
+template<typename T, size_t N>
+constexpr
+size_t array_len(T(&)[N]) {
+    return N;
+}
+
+
+static random_device _rngeesus;
+static u64vec hash_table; // [height][width][states]
+
+static void
+_fill_random(u64vec& table) {
+    mt19937 gen(_rngeesus());
+    uniform_int_distribution<u64> distr;
+
+    for (auto& x : table) {
+        x = distr(gen);
+    }
+}
+
+enum class cell_symbol : u8 {
     empty = ' ',
     earth = '.',
     wall = '#',
@@ -28,7 +51,63 @@ typedef enum cell : u8 {
     lift = 'L',
     openlift = 'O',
     robot = 'R',
-} cell;
+};
+
+enum class cell : u8 {
+    empty = 0,
+    earth = 1,
+    wall = 2,
+    rock = 3,
+    lambda = 4,
+    lift = 5,
+    openlift = 6,
+    robot = 7,
+};
+
+static const cell all_cells[] = {
+    cell::empty,
+    cell::earth,
+    cell::wall,
+    cell::rock,
+    cell::lambda,
+    cell::lift,
+    cell::openlift,
+    cell::robot,
+};
+
+
+cell static inline
+cell_from_symbol(cell_symbol sym) {
+    switch (sym) {
+        case cell_symbol::empty: return cell::empty;
+        case cell_symbol::earth: return cell::earth;
+        case cell_symbol::wall: return cell::wall;
+        case cell_symbol::rock: return cell::rock;
+        case cell_symbol::lambda: return cell::lambda;
+        case cell_symbol::lift: return cell::lift;
+        case cell_symbol::openlift: return cell::openlift;
+        case cell_symbol::robot: return cell::robot;
+    }
+}
+
+cell_symbol static inline
+symb_from_cell(cell val) {
+    switch (val) {
+        case cell::empty: return cell_symbol::empty;
+        case cell::earth: return cell_symbol::earth;
+        case cell::wall: return cell_symbol::wall;
+        case cell::rock: return cell_symbol::rock;
+        case cell::lambda: return cell_symbol::lambda;
+        case cell::lift: return cell_symbol::lift;
+        case cell::openlift: return cell_symbol::openlift;
+        case cell::robot: return cell_symbol::robot;
+    }
+}
+
+u64 static inline
+cell_hash(size_t offset, cell value) {
+    return hash_table[offset * (u8) value];
+}
 
 
 typedef enum action : u8 {
@@ -72,6 +151,7 @@ typedef struct map_info {
 
 typedef struct sim_state {
     board_t board;
+    u64 board_hash;
     pos robot_pos;
     s32 score;
     u32 lambdas_collected;
@@ -103,7 +183,7 @@ ostream& operator << (ostream& so, const board_t& board) {
 
     for (coosq offset = 0; offset + stride <= board.size(); offset += stride) {
         for (coord col = 0; col < stride; col++) {
-            so << (char) board[offset + col];
+            so << (char) symb_from_cell(board[offset + col]);
         }
         so << '\n';
     }
@@ -126,7 +206,7 @@ game_state static
 read_map(istream& si) {
     coord max_width = 0;
     coord row = 0;
-    vector<vector<cell>> board({ {} });
+    vector<vector<cell_symbol>> board({ {} });
     pos robot = {};
     pos lift = {};
     u32 lambdas = 0;
@@ -148,25 +228,25 @@ read_map(istream& si) {
 
             case 'R': // robot
                 robot = { .x = (coord) board[row].size(), .y = (coord) row };
-                board[row].push_back(cell(c));
+                board[row].push_back(cell_symbol(c));
                 break;
 
             case '\\': // lambda
                 lambdas++;
-                board[row].push_back(cell(c));
+                board[row].push_back(cell_symbol(c));
                 break;
 
             case 'L': // lift
             case 'O': // openlift
                 lift = { .x = (coord) board[row].size(), .y = (coord) row };
-                board[row].push_back(cell(c));
+                board[row].push_back(cell_symbol(c));
                 break;
 
             case ' ': // empty
             case '.': // earth
             case '#': // wall
             case '*': // rock
-                board[row].push_back(cell(c));
+                board[row].push_back(cell_symbol(c));
                 break;
 
             case '\r':
@@ -191,19 +271,36 @@ read_map(istream& si) {
     flat_board.reserve(max_width * row);
 
     for (auto& row : board) {
-        row.resize(max_width, cell::empty);
-        flat_board.insert(end(flat_board), begin(row), end(row));
+        row.resize(max_width, cell_symbol::empty);
+        for (auto& sym : row) {
+            flat_board.push_back(cell_from_symbol(sym));
+        }
     }
+
+    auto width = max_width;
+    auto height = row;
+
+    hash_table.resize(width * height * array_len(all_cells));
+    _fill_random(hash_table);
+
+    u64 zobrist = 0;
+    size_t offset = 0;
+    for (auto x : flat_board) {
+        zobrist ^= cell_hash(offset, x);
+        offset++;
+    }
+
 
     return make_tuple<map_info, sim_state>(
         {
-            max_width,  // .width
-            row,        // .height
+            width,      // .width
+            height,     // .height
             lift,       // .lift_pos
             lambdas,    // .lambdas_total
         },
         {
             flat_board, // .board
+            zobrist,    // .board_hash
             robot,      // .robot_pos
             0,          // .score
             0,          // .lambdas_collected
@@ -273,32 +370,55 @@ advance_pos(pos value, action mv) {
 }
 
 
+u64 static inline
+_update_hash_on_move(u64 value, coosq source, cell s, coosq target, cell t, cell empty) {
+    value ^= cell_hash(target, t);
+    value ^= cell_hash(target, s);
+    value ^= cell_hash(source, s);
+    value ^= cell_hash(source, cell::empty);
+    return value;
+}
+
+u64 static inline
+_update_hash_on_change(u64 value, coosq source, cell s, cell t) {
+    value ^= cell_hash(source, s);
+    value ^= cell_hash(source, t);
+    return value;
+}
+
+
 void static inline
-move_entity(board_t& board, coord stride, coord from_x, coord from_y, coord to_x, coord to_y) {
-    auto& x = board[from_y * stride + from_x];
-    board[to_y * stride + to_x] = x;
-    x = cell::empty;
+move_entity(board_t& board, u64& board_hash, coord stride, coord from_x, coord from_y, coord to_x, coord to_y) {
+    coosq source = from_y * stride + from_x;
+    coosq target = to_y * stride + to_x;
+
+    auto t = board[target];
+    auto s = board[source];
+    board[target] = s;
+    board[source] = cell::empty;
+
+    board_hash = _update_hash_on_move(board_hash, source, s, target, t, cell::empty);
 }
 
 void static inline
-move_entity(board_t& board, coord stride, const pos& from, const pos& to) {
-    move_entity(board, stride, from.x, from.y, to.x, to.y);
+move_entity(sim_state& state, coord stride, const pos& from, const pos& to) {
+    move_entity(state.board, state.board_hash, stride, from.x, from.y, to.x, to.y);
 }
 
 
 void static inline
 move_robot(const map_info& map, sim_state& state, const pos& from, const pos& to) {
-    move_entity(state.board, map.width, from, to);
+    move_entity(state, map.width, from, to);
     state.robot_pos = to;
 }
 
 
 void static inline
-move_rock(board_t& board, coord stride,
+move_rock(board_t& board, u64& board_hash, coord stride,
     coord from_x, coord from_y, coord to_x, coord to_y,
     const pos& robot_pos, u8* robot_destroyed) {
 
-    move_entity(board, stride, from_x, from_y, to_x, to_y);
+    move_entity(board, board_hash, stride, from_x, from_y, to_x, to_y);
 
     if (to_x == robot_pos.x && to_y + 1 == robot_pos.y) {
         *robot_destroyed = 1;
@@ -307,11 +427,17 @@ move_rock(board_t& board, coord stride,
 
 
 void static inline
-open_lift(const map_info& map, sim_state& state) {
+open_lift(sim_state& state, const map_info& map) {
+    auto& board = state.board;
     const auto& lift = map.lift_pos;
-    auto& x = state.board[lift.y * map.width + lift.x];
-    if (x == cell::lift) {
-        x = cell::openlift;
+    coosq source = lift.y * map.width + lift.x;
+
+    auto s = board[source];
+
+    if (s == cell::lift) {
+        board[source] = cell::openlift;
+
+        state.board_hash = _update_hash_on_change(state.board_hash, source, s, cell::openlift);
     }
 }
 
@@ -362,7 +488,7 @@ simulator_step(const map_info& map, const sim_state& currentState, action mv, si
                                 auto rock_pos = advance_pos(next_pos, mv);
                                 if (rock_pos.x >= 0 && rock_pos.x < map.width) {
                                     if (state.board[rock_pos.y * stride + rock_pos.x] == cell::empty) {
-                                        move_entity(state.board, stride, next_pos, rock_pos);
+                                        move_entity(state, stride, next_pos, rock_pos);
                                         move_robot(map, state, current_pos, next_pos);
                                     }
                                 }
@@ -396,11 +522,9 @@ simulator_step(const map_info& map, const sim_state& currentState, action mv, si
     }
 
     if (state.lambdas_collected >= map.lambdas_total) {
-        open_lift(map, state);
+        open_lift(state, map);
     }
 
-    auto next_board = state.board;
-    auto robot_pos = state.robot_pos;
     u8 robot_destroyed = 0;
 
     for (s32 row = map.height - 2; row >= 0; row--) {
@@ -410,24 +534,24 @@ simulator_step(const map_info& map, const sim_state& currentState, action mv, si
                 switch (bottom) {
 
                     case cell::empty:
-                        move_rock(next_board, stride, col, row, col, row + 1, robot_pos, &robot_destroyed);
+                        move_rock(state.board, state.board_hash, stride, col, row, col, row + 1, state.robot_pos, &robot_destroyed);
                         break;
 
                     case cell::rock:
                         if (col + 1 < map.width && state.board[row * stride + (col+1)] == cell::empty
                             && state.board[(row+1) * stride + (col+1)] == cell::empty) {
-                                move_rock(next_board, stride, col, row, col + 1, row + 1, robot_pos, &robot_destroyed);
+                                move_rock(state.board, state.board_hash, stride, col, row, col + 1, row + 1, state.robot_pos, &robot_destroyed);
                         }
                         else if (col - 1 >= 0 && state.board[row * stride + (col-1)] == cell::empty
                             && state.board[(row+1) * stride + (col-1)] == cell::empty) {
-                                move_rock(next_board, stride, col, row, col - 1, row + 1, robot_pos, &robot_destroyed);
+                                move_rock(state.board, state.board_hash, stride, col, row, col - 1, row + 1, state.robot_pos, &robot_destroyed);
                         }
                         break;
 
                     case cell::lambda:
                         if (col + 1 < map.width && state.board[row * stride + (col+1)] == cell::empty
                             && state.board[(row+1) * stride + (col+1)] == cell::empty) {
-                                move_rock(next_board, stride, col, row, col + 1, row + 1, robot_pos, &robot_destroyed);
+                                move_rock(state.board, state.board_hash, stride, col, row, col + 1, row + 1, state.robot_pos, &robot_destroyed);
                         }
                         break;
 
@@ -438,7 +562,17 @@ simulator_step(const map_info& map, const sim_state& currentState, action mv, si
         }
     }
 
-    state.board = next_board;
+    #if 0
+    #include <cassert>
+    u64 zobrist = 0;
+    size_t offset = 0;
+    for (auto x : state.board) {
+        zobrist ^= cell_hash(offset, x);
+        offset++;
+    }
+    assert(state.board_hash == zobrist);
+    #endif
+
 
     if (!state.is_ended && robot_destroyed) {
         state.is_ended = 1;
