@@ -39,6 +39,15 @@ typedef enum action : u8 {
     abort = 'A',
 } action;
 
+static const action all_actions[] = {
+    action::left,
+    action::right,
+    action::up,
+    action::down,
+    action::wait,
+    action::abort,
+};
+
 
 typedef vector<cell> board_t;
 typedef vector<action> program_t;
@@ -55,10 +64,10 @@ typedef struct pos {
 typedef struct game_state {
     coord width;
     coord height;
-    board_t board;
     pos lift_pos;
     u32 lambdas_total;
 
+    board_t board;
     pos robot_pos;
     s32 score;
     u32 lambdas_collected;
@@ -173,9 +182,9 @@ read_map(istream& si) {
     return {
         max_width,  // .width
         row,        // .height
-        flat_board, // .board
         lift,       // .lift_pos
         lambdas,    // .lambdas_total
+        flat_board, // .board
         robot,      // .robot_pos
         0,          // .score
         0,          // .lambdas_collected
@@ -291,7 +300,7 @@ typedef void (*simcb_t) (const game_state&);
 
 
 game_state static
-run_step(const game_state& currentState, action mv, simcb_t callback = nullptr) {
+simulator_step(const game_state& currentState, action mv, simcb_t callback = nullptr) {
     auto state = currentState;
     auto current_pos = currentState.robot_pos;
     auto next_pos = advance_pos(current_pos, mv);
@@ -429,18 +438,22 @@ runsim(const game_state& currentState, const program_t& prog, simcb_t callback =
     coosq turns = 0;
     coosq max_turns = state.width * state.height;
 
+    if (callback != nullptr) {
+        callback(state);
+    }
+
     for (auto mv : prog) {
         if (state.is_ended || turns >= max_turns) {
             break;
         }
 
-        state = run_step(state, mv, callback);
+        state = simulator_step(state, mv, callback);
 
         turns++;
     }
 
     if (!state.is_ended) {
-        state = run_step(state, action::abort, callback);
+        state = simulator_step(state, action::abort, callback);
     }
 
     return state;
