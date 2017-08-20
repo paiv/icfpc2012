@@ -105,7 +105,7 @@ children(const search_state& currentState, const game_state& game) {
 
 
 search_state static
-bfs_player(const game_state& game, const search_state& initialState) {
+bfs_player(const game_state& game, const search_state& initialState, const u8& cancelled) {
 
     auto best = initialState;
 
@@ -114,7 +114,7 @@ bfs_player(const game_state& game, const search_state& initialState) {
 
     fringe.push(initialState);
 
-    while (fringe.size() > 0) {
+    while (fringe.size() > 0 && !cancelled) {
         auto current = fringe.front();
         fringe.pop();
 
@@ -143,7 +143,7 @@ bfs_player(const game_state& game, const search_state& initialState) {
 
 
 program_t static inline
-bfs_player(const game_state& game) {
+bfs_player(const game_state& game, const u8& cancelled) {
 
     search_state state = {
         game.board,
@@ -155,17 +155,17 @@ bfs_player(const game_state& game) {
         program_t(),
     };
 
-    state = bfs_player(game, state);
+    state = bfs_player(game, state, cancelled);
 
     return state.prog;
 }
 
 
 s32 static
-solve(istream& si, ostream& so) {
+solve(istream& si, ostream& so, const u8& cancelled) {
     auto game = read_map(si);
 
-    program_t prog = bfs_player(game);
+    program_t prog = bfs_player(game, cancelled);
 
     so << prog;
 
