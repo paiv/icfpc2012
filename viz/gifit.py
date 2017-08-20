@@ -175,7 +175,7 @@ class LogAnimator:
         delay = round(10000 / self.fps) / 100
         loop = 0 if self.loop else 1
 
-        img = ImageMagick('+fuzz', layers='optimize-plus', alpha='set')
+        img = ImageMagick('+fuzz', layers='optimize-transparency', alpha='set')
         img.animate(from_dir, target, loop=loop, delay=delay)
 
 
