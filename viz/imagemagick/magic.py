@@ -22,21 +22,23 @@ class ProcRunner:
 
 
 class ImageMagick:
-    def __init__(self, engine='convert', **kwargs):
+    def __init__(self, engine='convert', *args, **kwargs):
         self.engine = engine
+        self.args = args
         self.kwargs = kwargs
 
-    def animate(self, frames_dir, target, **kwargs):
+    def animate(self, frames_dir, target, *args, **kwargs):
         if hasattr(target, 'write'):
-            self._process_frames(frames_dir, target, **kwargs)
+            self._process_frames(frames_dir, target, *args, **kwargs)
         else:
             dirs = os.path.dirname(target)
             os.makedirs(dirs, exist_ok=True)
 
             with open(target, 'w') as fd:
-                self._process_frames(frames_dir, fd, **kwargs)
+                self._process_frames(frames_dir, fd, *args, **kwargs)
 
-    def _process_frames(self, frames_dir, fd, **kwargs):
+    def _process_frames(self, frames_dir, fd, *args, **kwargs):
+        args = list(args) + list(self.args)
         kwargs.update(self.kwargs)
 
         files = glob(os.path.join(frames_dir, '*'))
@@ -54,4 +56,5 @@ class ImageMagick:
                 'gif:-',    # produce output to stdout
                 input=files,
                 stdout=fd,
+                *args,
                 **kwargs)

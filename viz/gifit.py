@@ -137,7 +137,19 @@ class LogAnimator:
             else:
                 board.read_line(line)
                 if board.complete:
+                    if self.frame_count == 0:
+                        # pause at first frame
+                        self._export_frame(board, target)
+                        self._export_frame(board, target)
+                        self._export_frame(board, target)
+
                     self._export_frame(board, target)
+
+        if self.frame_count > 0:
+            # pause at last frame
+            self._export_frame(board, target)
+            self._export_frame(board, target)
+            self._export_frame(board, target)
 
     def _export_frame(self, board, target):
         if self.max_frames > 0 and self.frame_count >= self.max_frames:
@@ -163,7 +175,7 @@ class LogAnimator:
         delay = round(10000 / self.fps) / 100
         loop = 0 if self.loop else 1
 
-        img = ImageMagick(layers='optimize', alpha='on')
+        img = ImageMagick('+fuzz', layers='optimize-plus', alpha='set')
         img.animate(from_dir, target, loop=loop, delay=delay)
 
 
