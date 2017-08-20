@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+trap "exit" INT TERM
+trap "kill 0" EXIT
+
+
 MYDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 NOW=`date -u +'%Y%m%d%H%M%S'`
 LOGDIR="$MYDIR/logs/$NOW"
