@@ -9,7 +9,6 @@ namespace paiv {
 typedef struct search_state {
     sim_state sim;
 
-    u8 is_terminal;
     u8 is_win;
     program_t prog;
 
@@ -58,9 +57,11 @@ vector<search_state> static
 children(const map_info& map, const search_state& currentState) {
     vector<search_state> res;
 
-    if (currentState.is_terminal) {
+    #if 0
+    if (currentState.sim.is_ended) {
         return res;
     }
+    #endif
 
     for (auto mv : all_actions) {
 
@@ -71,7 +72,6 @@ children(const map_info& map, const search_state& currentState) {
 
         search_state nextState = {
             sim,
-            sim.is_ended,
             sim.robot_pos == map.lift_pos,
             prog,
         };
@@ -107,14 +107,15 @@ bfs_player(const map_info& map, const search_state& initialState, const u8& canc
         if (current.is_win) {
             return current;
         }
-        else if (current.is_terminal) {
+        else if (current.sim.is_ended) {
             if (current.sim.score > best.sim.score) {
                 best = current;
             }
         }
-
-        for (auto& child : children(map, current)) {
-            fringe.push(child);
+        else {
+            for (auto& child : children(map, current)) {
+                fringe.push(child);
+            }
         }
     }
 
@@ -135,7 +136,6 @@ bfs_player(const game_state& game, const u8& cancelled) {
 
     search_state state = {
         sim,
-        sim.is_ended,
         sim.robot_pos == map.lift_pos,
         program_t(),
     };
