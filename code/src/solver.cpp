@@ -12,9 +12,11 @@ typedef struct search_state {
     u8 is_win;
     program_t prog;
 
+    #if 0
     bool operator == (const search_state& b) const {
-        return sim.board == b.sim.board;
+        return sim.board == b.sim.board && next_move == b.next_move;
     }
+    #endif
 } search_state;
 
 
@@ -53,7 +55,7 @@ struct hash<search_state> {
 namespace paiv {
 
 
-vector<search_state> static
+vector<search_state> static inline
 children(const map_info& map, const search_state& currentState) {
     vector<search_state> res;
 
@@ -64,18 +66,8 @@ children(const map_info& map, const search_state& currentState) {
     #endif
 
     for (auto mv : all_actions) {
-
-        auto sim = simulator_step(map, currentState.sim, mv);
-
-        auto prog = currentState.prog;
-        prog.push_back(mv);
-
-        search_state nextState = {
-            sim,
-            sim.robot_pos == map.lift_pos,
-            prog,
-        };
-
+        auto nextState = currentState;
+        nextState.prog.push_back(mv);
         res.push_back(nextState);
     }
 
@@ -98,11 +90,19 @@ bfs_player(const map_info& map, const search_state& initialState, const u8& canc
         auto current = fringe.front();
         fringe.pop();
 
+
+        if (current.prog.size() > 0) {
+            current.sim = simulator_step(map, current.sim, current.prog.back());
+            current.is_win = current.sim.robot_pos == map.lift_pos;
+        }
+
+
         if (visited.find(current.sim.board_hash) != end(visited)) {
             continue;
         }
 
         visited.insert(current.sim.board_hash);
+
 
         if (current.is_win) {
             return current;
