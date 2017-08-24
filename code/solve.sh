@@ -24,9 +24,15 @@ cat "$GAMEMAP" | tee "$LOGDIR/map.txt"
 echo ''
 
 set +e
-PROG=`cat "$GAMEMAP" | timeout -2 "$TIMEOUT" "$TARGET_DIR/lifter" 2> "$LOGDIR/stderr.log" `
+PROG=`cat "$GAMEMAP" | PAIV_TIMEOUT="$TIMEOUT" timeout -2 "$TIMEOUT" "$TARGET_DIR/lifter" 2> "$LOGDIR/stderr.log" `
 set -e
 
+# exec 3< <(cat "$GAMEMAP" | "$TARGET_DIR/lifter" 2> "$LOGDIR/stderr.log")
+# pid=$!
+# echo "pid: $pid"
+# (sleep $TIMEOUT && kill -2 $pid) 2>/dev/null & watcher=$!
+# wait $pid 2>/dev/null && pkill -HUP -P $watcher
+# PROG=$(cat <&3)
 
 { cat "$GAMEMAP"; echo ''; echo "$PROG"; } | "$TARGET_DIR/validate" 2>> "$LOGDIR/stderr.log" 1> "$LOGDIR/solution.txt"
 

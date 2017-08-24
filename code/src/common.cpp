@@ -1,9 +1,11 @@
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <random>
 #include <sstream>
 #include <string>
 #include <tuple>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -20,7 +22,13 @@ typedef uint64_t u64;
 typedef uint32_t u32;
 typedef uint8_t u8;
 
-typedef vector<uint64_t> u64vec;
+typedef double r64;
+
+constexpr s32 s32_min = numeric_limits<s32>::min();
+constexpr r64 r64_min = numeric_limits<r64>::min();
+
+typedef vector<u64> u64vec;
+typedef unordered_set<u8> u8set;
 
 template<typename T, size_t N>
 constexpr
@@ -41,6 +49,16 @@ _fill_random(u64vec& table) {
         x = distr(gen);
     }
 }
+
+template<typename Iter>
+Iter
+random_choice(Iter begin, Iter end) {
+    mt19937 gen(_rngeesus());
+    uniform_int_distribution<> distr(0, distance(begin, end) - 1);
+    advance(begin, distr(gen));
+    return begin;
+}
+
 
 enum class cell_symbol : u8 {
     empty = ' ',
@@ -119,15 +137,6 @@ typedef enum action : u8 {
     abort = 'A',
 } action;
 
-static const action all_actions[] = {
-    action::left,
-    action::right,
-    action::up,
-    action::down,
-    action::wait,
-    // action::abort,
-};
-
 
 typedef vector<cell> board_t;
 typedef vector<action> program_t;
@@ -201,6 +210,27 @@ ostream& operator << (ostream& so, const program_t& prog) {
     return so;
 }
 
+}
+
+
+namespace std {
+
+template<>
+struct hash<paiv::program_t> {
+    inline size_t operator()(const paiv::program_t& v) const {
+        hash<uint8_t> h;
+        size_t seed = 0;
+        for (auto x : v) {
+            seed ^= h(x) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        }
+        return seed;
+    }
+};
+
+}
+
+
+namespace paiv {
 
 game_state static
 read_map(istream& si) {
@@ -586,8 +616,16 @@ simulator_step(const map_info& map, const sim_state& currentState, action mv, si
 }
 
 
+enum class runsim_opts {
+    no_abort = 0,
+    force_abort = 1,
+};
+
+
 sim_state static
-runsim(const map_info& map, const sim_state& currentState, const program_t& prog, simcb_t callback = nullptr) {
+runsim(const map_info& map, const sim_state& currentState, const program_t& prog,
+    runsim_opts opts = runsim_opts::force_abort, simcb_t callback = nullptr) {
+
     auto state = currentState;
     coosq turns = 0;
     coosq max_turns = map.width * map.height;
@@ -606,11 +644,17 @@ runsim(const map_info& map, const sim_state& currentState, const program_t& prog
         turns++;
     }
 
-    if (!state.is_ended) {
+    if (!state.is_ended && opts == runsim_opts::force_abort) {
         state = simulator_step(map, state, action::abort, callback);
     }
 
     return state;
+}
+
+
+sim_state static inline
+runsim(const map_info& map, const sim_state& currentState, const program_t& prog, simcb_t callback) {
+    return runsim(map, currentState, prog, runsim_opts::force_abort, callback);
 }
 
 
