@@ -1,0 +1,21 @@
+1170
+##############        
+#      ......#        
+### #    . ..#        
+  # #    . ..#        
+### #      ..#        
+#.  #        #######  
+#.# #..    **    . #  
+#   #.###  ####    #  
+#*  #.     ...##   #  
+#\# #....  ....#   #  
+### #....  ....#   ## 
+#   #..... ....#    # 
+########.. ..### #### 
+#.......           .# 
+#...       ....     # 
+#..      # ####  * R# 
+#...     **..  ****.# 
+##########L########## 
+
+UULLLLDLLRRRRDLLLLULRURRRRURRRRRRRRRRDDLLWLRULDDLLRRUURUUURUUUULLULLWLLLLUULLULULULLDDDDDDUUUUUULRRRDRRRDDDDLULLUUUULLDDDDDDLDLRRDDDLLRRUUUUUUUUUULLRRRRRDDRDDDRRDDDDRDDDRRRRRRRDRRD

@@ -21,4 +21,4 @@ for i in $(seq 4 10); do
 done
 
 
-"$MYDIR/stats.sh" "$LOGDIR" > "$LOGDIR/summary.txt"
+"$MYDIR/stats.sh" "$LOGDIR" > "$LOGDIR/summary.md"

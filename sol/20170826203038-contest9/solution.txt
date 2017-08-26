@@ -1,0 +1,20 @@
+1786
+        #L#######         
+        #       #         
+        #       #         
+######### ##    ##########
+#.....                  .#
+#**            #....#   .#
+###*           #.......**#
+#*********.    ##     #\.#
+#########*      ##########
+        #*** *  #         
+        #### ####         
+        #..     #         
+#########       ##########
+#       #                #
+#     *   ..R  ** #   ## #
+#* ******     ****       #
+##########################
+
+LURURRRDULLLDDRRRRRRRRRRRRRRLUURDRLURRRRRDDRRRUULLLLLLLLLULULLLRUUURURUUURRRRRRRDULLLLLLLLDDDLLRDDDDLDRRLUUUULLLULLURRUUUURWLDDLLLDDLRRUURRRRRRUURUDDLDLDDDDDDDRDDRDURRRRRDRDLUULLLLLLLUUUULUUUULDLLLLDUUDLLLRRRRUURRUUURRDLLDDLDRRRRRRURRRRRRRRDLULLLLLLLDDDLDLDDDRDDDUUULUUUUUUURUUUDLDDDDDDDDDRRRDDRRRRDDLLRRUULLLLLLLD
