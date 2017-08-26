@@ -25,6 +25,7 @@ typedef uint8_t u8;
 typedef double r64;
 
 constexpr s32 s32_min = numeric_limits<s32>::min();
+constexpr s32 s32_max = numeric_limits<s32>::max();
 constexpr r64 r64_min = numeric_limits<r64>::min();
 
 typedef vector<u64> u64vec;
@@ -61,6 +62,7 @@ random_choice(Iter begin, Iter end) {
 
 
 enum class cell_symbol : u8 {
+    none = '\0',
     empty = ' ',
     earth = '.',
     wall = '#',
@@ -72,14 +74,15 @@ enum class cell_symbol : u8 {
 };
 
 enum class cell : u8 {
-    empty = 0,
-    earth = 1,
-    wall = 2,
-    rock = 3,
-    lambda = 4,
-    lift = 5,
-    openlift = 6,
-    robot = 7,
+    none = 0,
+    empty = 1,
+    earth = 2,
+    wall = 3,
+    rock = 4,
+    lambda = 5,
+    lift = 6,
+    openlift = 7,
+    robot = 8,
 };
 
 static const cell all_cells[] = {
@@ -97,6 +100,7 @@ static const cell all_cells[] = {
 cell static inline
 cell_from_symbol(cell_symbol sym) {
     switch (sym) {
+        case cell_symbol::none: return cell::none;
         case cell_symbol::empty: return cell::empty;
         case cell_symbol::earth: return cell::earth;
         case cell_symbol::wall: return cell::wall;
@@ -111,6 +115,7 @@ cell_from_symbol(cell_symbol sym) {
 cell_symbol static inline
 symb_from_cell(cell val) {
     switch (val) {
+        case cell::none: return cell_symbol::none;
         case cell::empty: return cell_symbol::empty;
         case cell::earth: return cell_symbol::earth;
         case cell::wall: return cell_symbol::wall;
@@ -120,11 +125,6 @@ symb_from_cell(cell val) {
         case cell::openlift: return cell_symbol::openlift;
         case cell::robot: return cell_symbol::robot;
     }
-}
-
-u64 static inline
-cell_hash(size_t offset, cell value) {
-    return hash_table[offset * (u8) value];
 }
 
 
@@ -181,13 +181,40 @@ getsim(const game_state& state) {
 }
 
 
+u64 static inline
+cell_hash(size_t offset, cell value) {
+    return hash_table[offset + (u8) value];
+}
+
+u64 static inline
+board_hash(const board_t& board) {
+    u64 h = 0;
+    size_t offset = 0;
+    for (auto x : board) {
+        h ^= cell_hash(offset, x);
+        offset++;
+    }
+    return h;
+}
+
+
+coord static inline
+manhattan_distance(const pos& from, const pos& to) {
+    return abs(to.x - from.x) + abs(to.y - from.y);
+}
+
+
 bool operator == (const pos& a, const pos& b) {
     return a.x == b.x && a.y == b.y;
 }
 
+bool operator != (const pos& a, const pos& b) {
+    return a.x != b.x || a.y != b.y;
+}
+
 
 ostream& operator << (ostream& so, const board_t& board) {
-    const auto stride = so.width();
+    const auto stride = so.width() > 0 ? so.width() : 1;
     so.width(0);
 
     for (coosq offset = 0; offset + stride <= board.size(); offset += stride) {
@@ -210,6 +237,11 @@ ostream& operator << (ostream& so, const program_t& prog) {
     return so;
 }
 
+ostream& operator << (ostream& so, const pos& pp) {
+    return so << pp.x << "," << pp.y;
+}
+
+
 }
 
 
@@ -223,6 +255,17 @@ struct hash<paiv::program_t> {
         for (auto x : v) {
             seed ^= h(x) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
         }
+        return seed;
+    }
+};
+
+template<>
+struct hash<paiv::pos> {
+    inline size_t operator()(const paiv::pos& v) const {
+        hash<paiv::coord> h;
+        size_t seed = 0;
+        seed ^= h(v.x) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= h(v.y) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
         return seed;
     }
 };
@@ -313,12 +356,7 @@ read_map(istream& si) {
     hash_table.resize(width * height * array_len(all_cells));
     _fill_random(hash_table);
 
-    u64 zobrist = 0;
-    size_t offset = 0;
-    for (auto x : flat_board) {
-        zobrist ^= cell_hash(offset, x);
-        offset++;
-    }
+    u64 zobrist = board_hash(flat_board);
 
 
     return make_tuple<map_info, sim_state>(
@@ -528,6 +566,7 @@ simulator_step(const map_info& map, const sim_state& currentState, action mv, si
                         }
                         break;
 
+                    case cell::none:
                     case cell::wall:
                     case cell::lift:
                     case cell::robot:
