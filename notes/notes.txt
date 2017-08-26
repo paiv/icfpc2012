@@ -13,3 +13,9 @@ http://weetu.net/Timo-Virkkala-Solving-Sokoban-Masters-Thesis.pdf
 
 Willy: A Sokoban Solving Agent (2016)
 http://sokoban.dk/wp-content/uploads/2016/02/docslide.us_willy-a-sokoban-solving-agent.pdf
+
+General Game Playing
+http://arrogant.stanford.edu/ggp/homepage/lessons.php
+
+Single-Player Monte-Carlo Tree Search for SameGame
+https://dke.maastrichtuniversity.nl/m.winands/documents/KNOSYS_SameGame.pdf
